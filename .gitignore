@@ -1,6 +1,9 @@
 # .txt data files, until published, later I will include them
 *.txt
 
+# Trash files
+trash/
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db

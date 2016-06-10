@@ -4,22 +4,22 @@
 tic();
 mk_Clear(); 
 choice = cTLM_Control( ...
-                       { 'mk_pause', 3 }, ...
-                       { 'r0', 50e-6 }, ...                                                 % inner circle's radius
-                       { 'ring_distances', 1e-6*[2, 5, 10, 15, 20, 25, 30, 35, 40]' }, ...  % (m)                                                                       
-                       { 'exclude_mode', 'normal' }, ...                                    % 'normal' XOR 'stop_excluding_in_IV' - stops excluding in IV graphs XOR 'first_ring' - only first
-                       { 'exclude', {'B1', [1 9]; 'B2', [1 3 5 7 8 9]; 'B3', [1 5 8 9]; 'B4', 1; 'B5', 3; 'C1', [1 4 7 8 9]; 'C2', [1 3 6 7 8]} }, ... % bada ring measurements, to exclude
-                       { 'exclude_structure', {'C1', 'C2', 'D3', 'E4'} }, ...               % which whole structures to exclude
-                       { 'p0', [4000, 2e-6]}, ...                                           % initial values for fit: [R_SH (Ohm/sq.), L_T (um)]
-                       { 'options', []}, ...                                                % for fitting
-                       { 'Display', 'off'}, ...                                             % what for, indeed?
-                       { 'figures', [0, 0, 0, 0, 1, 1]} ...                                 % figures: [I-V data with and wihout extrema, I-Vs fit, R for each ring in structure, R for each ring and R_mean over structures, mean_fit, fit_mean]
+                       { 'mk_pause', 2 }, ...
+                       { 'r0', 50e-6 }, ...                                                  % inner circle's radius
+                       { 'ring_distances', 1e-6*[2, 5, 10, 15, 20, 25, 30, 35, 40]' }, ...   % (m)                                                                       
+                       { 'exclude_mode', 'normal' }, ...                                     % 'normal' XOR 'stop_excluding_in_IV' - stops excluding in IV graphs XOR 'first_ring' - only first
+                       { 'exclude', {'B1', [1 9]; 'B2', [1 3 5 7 8 9]; 'B3', [1 5 8 9]; 'B4', 1; 'B5', 3; 'C1', [1 4 7 8 9]; 'C2', [1 3 6 7 8]; 'F1', [5]} }, ... % bad ring measurements, to exclude
+                       { 'exclude_structure', {'C1', 'C2', 'D3', 'E4'} }, ...                % which whole structures to exclude
+                       { 'p0', [4000, 2e-6] }, ...                                           % initial values for fit: [R_SH (Ohm/sq.), L_T (um)]
+                       { 'options', [] }, ...                                                % for fitting
+                       { 'Display', 'off' }, ...                                             % what for, indeed?
+                       { 'figures', [0, 0, 0, 0, 0, 0] } ...                                 % figures: [I-V data with and wihout extrema, I-Vs fit, R for each ring in structure, R for each ring and R_mean over structures, mean_fit, fit_mean]
                       );
 %                  
-%% Create Data ===========================================================================================================
+%% Create Data Structure ===========================================================================================================
 [data, cTLM_files, number_of_rings, existing_rings_without_excluded] = cTLM_CreateDataStructure(choice);  
 %
-%% Fit Data ===========================================================================================================
+%% Creata resistances data ===========================================================================================================
 % Create resistances_all matrix without excluded structures
 excluded_structures_idx = zeros(numel(data),1); % create index of structures to exclude
 for i_excl = 1:1:numel(choice.exclude_structure)
@@ -27,13 +27,31 @@ for i_excl = 1:1:numel(choice.exclude_structure)
 end        
 resistances = [data(not(excluded_structures_idx)).resistances]; % all ring resistances, without excluded structures, [(R deltaR)- for each ring]
 %
-% Mean-Fit % first - from all measured structures calculate mean resistance for each ring , second - fit cTLM for one set of mean resistances 
+
+%% Ring mean
 ring_mean = [];
 ring_mean_error = [];
 for i_ring = 1:1:number_of_rings
     ring_mean = [ring_mean; sum(resistances(i_ring,1:2:end),2) / numel(find(resistances(i_ring,1:2:end))) ]; % divide by quantity of non-zero elements for each ring
     ring_mean_error = [ring_mean_error; sqrt(sum(resistances(i_ring,2:2:end).^2,2)) / numel(find(resistances(i_ring,2:2:end))) ];
 end
+
+%% Save resistances data ===========================================================================================================
+save_name = 'resistances.txt';
+len = length(data(not(excluded_structures_idx)));
+handy1([2*linspace(1,len,len)-1, 2*linspace(1,len,len)]) = repmat({data(not(excluded_structures_idx)).structure_name}, 1, 2); % create header
+handy2 = repmat({'Ohm'}, 1, 2*len+2);
+save_header = ['Distances' char(9) sprintf('%s\t', handy1{:}, 'ring_mean', 'ring_mean') char(13) ...
+               'm'        char(9) sprintf('%s\t', handy2{:}) char(13) ...
+              ];
+save_data = [ring_distances resistances ring_mean ring_mean_error];
+dlmwrite(save_name, save_header, '')
+dlmwrite(save_name, save_data, '-append', 'delimiter', '\t')
+clear handy1 handy2
+
+%% Fit resistances data ===========================================================================================================
+% Mean-Fit % first - from all measured structures calculate mean resistance for each ring , second - fit cTLM for one set of mean resistances 
+
 if figures(4) == 1
     figure(4)
     hold on
@@ -48,6 +66,8 @@ if figures(4) == 1
     legend([legend_line_objects_vector p_end], [legend_current, 'mean\_structure(R), for each individual ring'], 'Location', 'southeast')
     hold off
 end
+
+
 mean_fit = cTLM_fit(ring_mean, ring_mean_error, choice, 'Mean over structures');
 % %
 
@@ -67,9 +87,11 @@ end
 % fit_mean = mean(fits);
 
 
-
-
-
+%% Handy
+data_origin   = []; % input to command line
+if 1 == 0
+    output_origin = [ data_origin(1:2:end,:) data_origin(2:2:end,:)];
+end
 %
 %% Ende
 toc();
