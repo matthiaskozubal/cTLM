@@ -1,7 +1,7 @@
 %% Fitting R_SH vs ring-distance with Bessel special functions ==========================================================================================================
 % J. G. Champlain, R. Magno, and J. B. Boos, “Low resistance, unannealed ohmic contacts to n-type InAs 0.66 Sb 0.34,” Electronics Letters, vol. 43, no. 23, 2007.
 %
-function myFit = cTLM_fit(R, deltaR, choice, structure_name)
+function [myFit, mkStatistics] = cTLM_fit(R, deltaR, choice, structure_name)
     %% Data to fit
     present_R_index = find(R);
     R       = R(present_R_index);
@@ -25,29 +25,31 @@ function myFit = cTLM_fit(R, deltaR, choice, structure_name)
         myFit = {};
     end
     % Statistics -> Confidence Intervals for parameters
-    mk_statistics(d, ring_mean, ring_mean_error, myFit.Coefficients{1:2,1}, fun, [1e3, 1e6])
-%     %% append data
+    if isempty(myFit) ~= 1
+        mkStatistics = mk_statistics(d, R, deltaR, myFit.Coefficients{1:2,1}, fun, [1e3, 1e6]);
+    else
+        mkStatistics = [];
+    end
+    %% Append data
 %     data(i).cTLM_fit = myFit;
 %     data(h).R_SH = data(h).cTLM_fit.Coefficients{1,1};
 %     data(h).delta_R_SH = data(h).cTLM_fit.Coefficients{1,2};    
 %     data(h).L_T = data(h).cTLM_fit.Coefficients{2,1};
 %     data(h).delta_L_T = data(h).cTLM_fit.Coefficients{2,2};        
     %% Plot
-    if (choice.figures(5) == 1) && (isempty(myFit) ~= 1)
+    if (choice.figures(5) == 1) && (isempty(myFit) == 0)
         figure(5)
             plot(d*1e6, R, 'ob', 'MarkerEdgeColor', 'b', 'MarkerSize', 12, 'LineWidth', 2) % Distances in um
             hold on
             plot(d*1e6, fun(myFit.Coefficients{1:2,1},d), '-r', 'LineWidth', 2); % Distances in um
             hold off
             legend({'Data', ...
-                    ['Fit: '  'R_{SH} = (' num2str(myFit.Coefficients{1,1}/1e3,'%.2f') '\pm'  num2str(myFit.Coefficients{1,2}/1e3, '%.2f') ') (k\Omega/sq.); '   ... % sprintf('\n') for newline character
-                     'L_{T}   = (' num2str(myFit.Coefficients{2,1}*1e+6,'%.2f') '\pm' num2str(myFit.Coefficients{2,2}*1e+6, '%.2f') ') (\mum)'], ...
+                    ['Fit: '  'R_{SH} = (' num2str(myFit.Coefficients{1,1}/1e3,'%.2f') '\pm'  num2str(mkStatistics.CI_param(1)/1e3, '%.2f') ') (k\Omega/sq.); '   ... % sprintf('\n') for newline character
+                     'L_{T}   = (' num2str(myFit.Coefficients{2,1}*1e+6,'%.2f') '\pm' num2str(mkStatistics.CI_param(2)*1e+6, '%.2f') ') (\mum)'], ...
                    }, ...
                    'Location', 'SouthEast'  ...
                    );
             mk_plot(['cTLM fit for structure: ' num2str(structure_name)], 'Distance ($\mu$m)', '$\textnormal{R}_{\textnormal{SH}}$ ($\Omega$/sq.)', choice.ring_distances(present_R_index)*1e6, [], choice.mk_pause, [], 'latex') % Distances in um            
     end
-%% Calculate statistics
-% statistics = mk_statistics(R, deltaR, myFit.Coefficients{1:2,1}, fun); % data, residuals, coefficients
 %%=============================================================================================================================
 end

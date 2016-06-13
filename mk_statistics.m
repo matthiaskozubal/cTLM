@@ -3,7 +3,7 @@
 % [1] http://www.originlab.com/doc/Origin-Help/NLFit-Algorithm
 % [2] J. O. Rawlings, S. G. Pantula, and D. A. Dickey, Applied regression analysis: a research tool, 2. ed.,  2. printing. New York, NY: Springer, 2001.
 %
-function statistics =   mk_statistics(x, y, y_err, fitted_coefficients, fun, precision_correction)
+function statistics = mk_statistics(x, y, y_err, fitted_coefficients, fun, precision_correction)
     %% Start
     residuals = y - fun(fitted_coefficients, x);
     weights = 1./y_err.^2; % one of many possible ways to choose weights

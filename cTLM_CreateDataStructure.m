@@ -1,5 +1,7 @@
 %% Imports files and structurizes them into data variable
-function [data, cTLM_files, number_of_rings, existing_rings_without_excluded] = cTLM_CreateDataStructure(choice)
+% Output:
+%   - resistances [(R delta R) x n-times]
+function [data, cTLM_files, number_of_rings, existing_rings_without_excluded, resistances, excluded_structures_idx] = cTLM_CreateDataStructure(choice)
     %% List files to import    
     local_path = fileparts(mfilename('fullpath')); % current path-name for cTLM script
     cd(local_path);
@@ -74,7 +76,11 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded] = 
         myFit = fitlm(tbl,'Voltage ~ Current-1'); % [5e3] % '-1' <=> (..., 'Intercept', false)
         data(i_struct).rings(current_ring_number).ring_fit = myFit;
         %% Append resistances to data, wihout excluded
-        rings_to_exclude = [exclude{find(strcmp(exclude(:,1), current_structure_name)), 2}]; % rings_to_exclude, empty or something                            
+        if isempty(exclude) == 1
+            rings_to_exclude = [];
+        else ~isempty(exclude) == 1
+            rings_to_exclude = [exclude{find(strcmp(exclude(:,1), current_structure_name)), 2}]; % rings_to_exclude, empty or something                            
+        end
         if (sum(rings_to_exclude == current_ring_number) == 0) % checks if for current structure, current ring is not to be excluded - thus its resistance is to be appended to the data
             data(i_struct).resistances(current_ring_number,1:2) = [data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,1}, data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,2}]; % matrix, for easier access to R and deltaR
         end
@@ -131,4 +137,12 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded] = 
                 end
             end        
     end
+    %% Creata resistances data ===========================================================================================================
+    % Create resistances_all matrix without excluded structures
+    excluded_structures_idx = zeros(numel(data),1); % create index of structures to exclude
+    for i_excl = 1:1:numel(choice.exclude_structure)
+        excluded_structures_idx = excluded_structures_idx + cellfun(@(x) isequal(x, choice.exclude_structure{i_excl}),{data.structure_name})';
+    end        
+    resistances = [data(not(excluded_structures_idx)).resistances]; % all ring resistances, without excluded structures, [(R deltaR)- for each ring]
+    %
 end    
