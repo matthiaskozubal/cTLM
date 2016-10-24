@@ -8,8 +8,8 @@ function choice = cTLM_Control(varargin)
         if size(varargin{k},2) == 1                                        % parameter name with missing value 
             error(['Missing value for parameter ' varargin{k}{1} '.'])
             break;
-        elseif size(varargin{k},2) == 2                                    % parameter and value pair               
-            if (isfloat(varargin{k}{2}) == 1) || (iscell(varargin{k}{2}) == 1) || (ischar(varargin{k}{2}) == 1) % paramter's value is char, number or cell   
+        elseif size(varargin{k},2) == 2                                    % parameter-value pair               
+            if (isfloat(varargin{k}{2}) == 1) || (iscell(varargin{k}{2}) == 1) || (ischar(varargin{k}{2}) == 1) % paramter's value is number, cell or char   
                 choice = setfield(choice, varargin{k}{1}, varargin{k}{2}); % set field with variable's name and value as field's name and value
                 handy1 = genvarname(varargin{k}{1});                       % http://stackoverflow.com/questions/2809635/how-to-concatenate-a-number-to-a-variable-name-in-matlab
                 eval(['global ' handy1])                                   % parameter's value set for global (global must be also declared in main file)                

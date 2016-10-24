@@ -17,6 +17,45 @@ Metallization structure with several ring-pairs: set inner-ring-radius, varyin o
     * "<structure name>_o<ring name>.txt"
     * e.g. - B1_o1.txt, B1_o2.txt, ..., B1_o9.txt, B2_o1.txt, ...
 
+
+### Controls: ###
+* 'mode'
+    * 'fit_IVs_only'
+    * 'fit_cTLM'
+* 'nonlinear_IV_data'
+    * 'no' - linear fit
+    * 'yes' - evokes IV_linear_fit_to_nonlinear_data function to find best linear fit
+* 'mk_pause'
+    * time for displaying graphs
+* 'r0'
+    * inner circle's radius
+* 'ring_distances'
+    * set of ring distances for cTLM metallization structure (m)
+* 'exclude_mode':
+    * 'normal'
+    * 'stop_excluding_in_IV' - stops excluding in IV graphs
+    * 'first_ring' - exclude only first ring, because often they're shorted due to bad lift-off process
+* 'exclude'
+    * array of bad ring measurements to be excluded from fitting
+    * e.g.: {'B6', [1 8]; 'C3', [4 5 9]; 'F3', [1]}
+* 'exclude_structure'
+    * which whole structures to exclude from fitting
+    * e.g.: {'D3', 'C5'}
+* 'p0'
+    * initial values for fit: [R_SH (Ohm/sq.), L_T (um)]
+    * e.g.: [500, 0.5e-6] 
+* 'options'
+    * options for cTLM fitting
+    * default: []
+* 'Display'
+    * WTF?
+    * default: 'off'
+* 'figures'
+    * plots to show:
+        * [I-V data with and wihout extrema, I-Vs fit, R for each ring in structure, R for each ring and R_mean over structures, cTLM fits]
+    * default: [0, 0, 0, 0, 0]
+
+
 ### Output: ###
 * R_SH (Ohm/sq.) and L_T (um) parameters ...
 

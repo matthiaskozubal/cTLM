@@ -69,25 +69,34 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded, re
         data(i_struct).rings(current_ring_number).ring_name = ['o' num2str(current_ring_number)];
         data(i_struct).rings(current_ring_number).ring_data = importdata(fullfile('datafiles', cTLM_files(i_files).name));  % struct - data, textdata, colheaders     
         [IV_I, IV_U, quantity_of_I_extrema] = cTLM_Cut_ring_data_after_I_max(data(i_struct).rings(current_ring_number).ring_data.data, current_structure_name, current_ring_number, choice.figures, choice.mk_pause); % Check and remove data for I that rached compliance level % [(A), (V), (/)]              % [IV_I, IV_U] = deal(data(i_struct).rings(current_ring_number).ring_data.data(:,2), data(i_struct).rings(current_ring_number).ring_data.data(:,1));
+%         if (length(data(i_struct).rings(current_ring_number).ring_data.data) == quantity_of_I_extrema)
+%             continue; % short circuit, skip iteration for this ring
+%         end
         data(i_struct).rings(current_ring_number).ring_data_without_extremum = [IV_U IV_I]; % (V), (A)
         data(i_struct).rings(current_ring_number).quantity_of_I_extrema = quantity_of_I_extrema; % (/)        
-        %% Fit R to I-V, linear        
-        tbl = table(IV_I, IV_U, 'VariableNames', {'Current', 'Voltage'});
-        myFit = fitlm(tbl,'Voltage ~ Current-1'); % [5e3] % '-1' <=> (..., 'Intercept', false)
+        %% Fit linear model to I-V data      
+        switch choice.nonlinear_IV_data.mode
+            case 'no'
+                tbl = table(IV_U, IV_I, 'VariableNames', {'Voltage', 'Current'}); % x: I (A), y:  U (V)
+                myFit = fitlm(tbl,'Current ~ Voltage'); % [5e3] % 'Voltage-1' <=> (..., 'Intercept', false) % But use intercept, without it some fits were bad
+            case 'yes'
+                myFit = IV_linear_fit_to_nonlinear_data( [IV_U, IV_I], choice.nonlinear_IV_data.IV_graphs_mode, mk_pause/10, [num2str(current_structure_name) '_o' num2str(current_ring_number)], choice.nonlinear_IV_data.IV_min_points, choice.nonlinear_IV_data.IV_max_points);
+        end    
         data(i_struct).rings(current_ring_number).ring_fit = myFit;
         %% Append resistances to data, wihout excluded
         if isempty(exclude) == 1
             rings_to_exclude = [];
-        else ~isempty(exclude) == 1
+        elseif ~isempty(exclude) == 1
             rings_to_exclude = [exclude{find(strcmp(exclude(:,1), current_structure_name)), 2}]; % rings_to_exclude, empty or something                            
         end
         if (sum(rings_to_exclude == current_ring_number) == 0) % checks if for current structure, current ring is not to be excluded - thus its resistance is to be appended to the data
-            data(i_struct).resistances(current_ring_number,1:2) = [data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,1}, data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,2}]; % matrix, for easier access to R and deltaR
+            data(i_struct).resistances(current_ring_number,1:2) = [1/data(i_struct).rings(current_ring_number).ring_fit.Coefficients{2,1}, abs(data(i_struct).rings(current_ring_number).ring_fit.Coefficients{2,2}/data(i_struct).rings(current_ring_number).ring_fit.Coefficients{2,2}^2)]; % matrix, for easier access to R and deltaR
         end
         %% Plot I-Vs
         if choice.figures(2) == 1
-           R = data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,1}; % temporary variable
-           deltaR = data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,2}; % temporary variable          
+           R = data(i_struct).rings(current_ring_number).ring_fit.Coefficients{2,1}; % temporary variable
+           deltaR = data(i_struct).rings(current_ring_number).ring_fit.Coefficients{2,2}; % temporary variable          
+           Intercept = data(i_struct).rings(current_ring_number).ring_fit.Coefficients{1,1}; % only for plot
            IV_color = CM(colormap_vector(current_ring_number),:);
            if ishandle(21)
                close(21)
@@ -95,13 +104,13 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded, re
            figure(21)
                p21 = plot(IV_I, IV_U, '.', 'color', IV_color);
                hold on
-               plot(IV_I, IV_I*[R - deltaR, R, R + deltaR], '-', 'color', IV_color);
+               plot(IV_I, (IV_I - Intercept)*[R - deltaR, R, R + deltaR], '-', 'color', IV_color);
                mk_plot([strrep(cTLM_files(i_files).name,'_','\_') '; R = (' num2str(R,'%.2f') '+-' num2str(deltaR, '%.2f') ') (Ohm)'], 'I (A)', 'U (V)', [], [], 0, [1/3 1/2 2/3 1/2], 'tex')
            figure(22)
                hold on
                plot(IV_I, IV_U, '.', 'color', IV_color);
-               p = plot(IV_I, IV_I*R, '-', 'color', IV_color); % plot(IV_I, IV_I*[R - deltaR, R, R + deltaR], '-', 'color', IV_color); p is Line Object
-               plot(IV_I, IV_I*[R - deltaR, R + deltaR], '-', 'color', IV_color); % plot max and min plots
+               p = plot(IV_I, (IV_I - Intercept)*R, '-', 'color', IV_color); % plot(IV_I, IV_I*[R - deltaR, R, R + deltaR], '-', 'color', IV_color); p is Line Object
+               plot(IV_I, (IV_I - Intercept)*[R - deltaR, R + deltaR], '-', 'color', IV_color); % plot max and min plots
                p_full = [p_full, p]; % vector of Line Objects, for legend            
                ring_names = {data(i_struct).rings.ring_name};
                legend(p_full, ring_names(find(not(cellfun(@isempty, ring_names))))) % ring names without empty               
@@ -124,12 +133,13 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded, re
                 if choice.figures(3) == 1
                     figure(3) % plot R with errorbars for each ring (wihout excluded) in current structure  
                        errorbar(existing_rings_without_excluded{i_struct}, data(i_struct).resistances(existing_rings_without_excluded{i_struct},1), data(i_struct).resistances(existing_rings_without_excluded{i_struct},2),'-o'); 
+                       set(gca, 'YScale', 'log')
                        mk_plot([ 'Resistivity from I-V measurements in ' num2str(current_structure_name) ' structure, rings excluded (not found): ' num2str([find(data(i_struct).resistances(:,1) == 0)]') ], ...
                                'Ring number', ...
                                'R_{ring} (\Omega)', ...
                                existing_rings_without_excluded{i_struct},  ...
                                [], ...
-                               (10*mk_pause), ...
+                               (5*mk_pause), ...
                                [0 0 1 1], ...
                                'tex' ...
                               )
@@ -144,5 +154,4 @@ function [data, cTLM_files, number_of_rings, existing_rings_without_excluded, re
         excluded_structures_idx = excluded_structures_idx + cellfun(@(x) isequal(x, choice.exclude_structure{i_excl}),{data.structure_name})';
     end        
     resistances = [data(not(excluded_structures_idx)).resistances]; % all ring resistances, without excluded structures, [(R deltaR)- for each ring]
-    %
 end    

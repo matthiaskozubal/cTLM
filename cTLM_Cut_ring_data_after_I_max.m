@@ -2,13 +2,13 @@ function [I, U, quantity_of_I_extrema] = cTLM_cut_ring_data_after_I_max(ring_dat
 %% Data
 I = ring_data(:,2);
 U = ring_data(:,1);
-%% Check how many extrema I possesses
+%% Check how many extrema I possess
 %  If more than e.g. 4 (two on each side) - then use Irounded instead of I
 %  Problem was if I_neg_min = -0.099999 and values were -0.099998 and -0.099999
 quantity_of_I_extrema = numel(I(I == max(I))) + numel(I(I == min(I)));
 if quantity_of_I_extrema > 4
-    decimal_places = 5; % decimal places precision for I rounding
-    I = round((I*(10^decimal_places)))/(10^decimal_places);
+    I = round(I, 1, 'significant'); % round I to 1 significant digit, only for extrema finding
+    quantity_of_I_extrema = numel(I(I == max(I))) + numel(I(I == min(I))) % recalculate number of extrema
 end
 % Non-negative and negative part 
 I_neg = I(I <  0);
